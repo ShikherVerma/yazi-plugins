@@ -26,7 +26,7 @@ Scrolling the preview flips to reading mode:
 
 Phone width never shows more than two columns:
 
-![Phone width two-panel layout: file list and preview only](../screenshots/phone-two-panel.png)
+![Phone width two-panel layout: file list and preview only](../screenshots/phone-portrait.png)
 
 ## Install
 
@@ -64,7 +64,7 @@ require("mobile-auto-layout"):setup {
 	current_max = 30,    -- file list width cap
 	min_width = 10,      -- floor for fit-to-content columns
 	reading_frac = 0.10, -- phone reading mode: file list sliver fraction
-	padding = 5,         -- icon and spacing added on top of the longest name
+	padding = 9,         -- icon, sign and borders added on top of the longest name
 	previewers = { "vscode-git-gutter", "code" }, -- previewers watched for scrolling
 }
 ```

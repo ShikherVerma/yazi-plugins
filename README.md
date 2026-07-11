@@ -25,7 +25,7 @@ Change gutter in the text preview ([vscode-git-gutter](vscode-git-gutter.yazi/))
 
 Phone width two-panel layout ([mobile-auto-layout](mobile-auto-layout.yazi/)):
 
-![Phone width two-panel layout](screenshots/phone-two-panel.png)
+![Phone width two-panel layout](screenshots/phone-portrait.png)
 
 ## Install
 

@@ -33,7 +33,7 @@ local cfg = {
 	current_max = 30, -- file-list width cap
 	min_width = 10, -- floor for fit-to-content panes
 	reading_frac = 0.10, -- phone READING: file-list sliver fraction
-	padding = 5, -- icon + space + pane padding added to the longest name
+	padding = 9, -- icon + sign + pane borders added to the longest name
 	previewers = { "vscode-git-gutter", "code" }, -- whose seek() to hook
 }
 
