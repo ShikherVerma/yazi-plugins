@@ -16,17 +16,21 @@ name.
 
 ## Screenshots
 
-Browsing at laptop width, columns fit their content and the preview gets the rest:
+Laptop, browse mode. Columns fit their content, the preview gets the rest:
 
-![Browse mode at laptop width with fit-to-content columns and a wide preview](../screenshots/auto-layout-browse.png)
+![Browse mode at laptop width](../screenshots/auto-layout-browse.png)
 
-Scrolling the preview flips to reading mode:
+Laptop, reading mode. Scrolling the preview drops the parent column and widens the preview:
 
-![Reading mode: the parent column is dropped and the preview takes over](../screenshots/auto-layout-reading.png)
+![Reading mode at laptop width](../screenshots/auto-layout-reading.png)
 
-Phone width never shows more than two columns:
+Phone, browse mode. Two columns only, the list keeps its full names:
 
-![Phone width two-panel layout: file list and preview only](../screenshots/phone-portrait.png)
+![Browse mode at phone width](../screenshots/phone-browse.png)
+
+Phone, reading mode. The list becomes a sliver and the preview takes the screen:
+
+![Reading mode at phone width](../screenshots/phone-portrait.png)
 
 ## Install
 
