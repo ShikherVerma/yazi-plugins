@@ -23,9 +23,23 @@ Change gutter in the text preview ([vscode-git-gutter](vscode-git-gutter.yazi/))
 
 ![Preview pane with a git change gutter](screenshots/git-gutter.png)
 
-Phone width two-panel layout ([mobile-auto-layout](mobile-auto-layout.yazi/)):
+mobile-auto-layout on a laptop, browse and reading mode:
 
-![Phone width two-panel layout](screenshots/phone-portrait.png)
+Browse mode:
+![browse on laptop](https://raw.githubusercontent.com/ShikherVerma/yazi-plugins/main/screenshots/auto-layout-browse.png)
+
+Reading mode collapses a panel so the preview panel shows up with more width:
+![reading on laptop](https://raw.githubusercontent.com/ShikherVerma/yazi-plugins/main/screenshots/auto-layout-reading.png)
+
+And on a phone:
+
+on phone only two panels are shown
+
+<img src="https://raw.githubusercontent.com/ShikherVerma/yazi-plugins/main/screenshots/phone-browse.png" width="320">
+
+in reading mode the preview panel takes up most of the width
+
+<img src="https://raw.githubusercontent.com/ShikherVerma/yazi-plugins/main/screenshots/phone-portrait.png" width="320">
 
 ## Install
 
