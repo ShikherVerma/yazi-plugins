@@ -23,7 +23,7 @@ back to plain text.
 
 ## Screenshots
 
-TODO
+![Preview pane with the change gutter: blue bars on modified lines, a green bar on added lines, red marks where lines were deleted](../screenshots/git-gutter.png)
 
 ## Install
 

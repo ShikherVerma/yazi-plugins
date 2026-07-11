@@ -27,7 +27,7 @@ Fetcher logic adapted from
 
 ## Screenshots
 
-TODO
+![File list with git status colors, letter badges on files, and dots on directories](../screenshots/git-colors.png)
 
 ## Install
 

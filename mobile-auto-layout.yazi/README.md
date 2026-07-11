@@ -16,7 +16,17 @@ name.
 
 ## Screenshots
 
-TODO
+Browsing at laptop width, columns fit their content and the preview gets the rest:
+
+![Browse mode at laptop width with fit-to-content columns and a wide preview](../screenshots/auto-layout-browse.png)
+
+Scrolling the preview flips to reading mode:
+
+![Reading mode: the parent column is dropped and the preview takes over](../screenshots/auto-layout-reading.png)
+
+Phone width never shows more than two columns:
+
+![Phone width two-panel layout: file list and preview only](../screenshots/phone-two-panel.png)
 
 ## Install
 
