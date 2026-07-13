@@ -74,6 +74,56 @@ local function split_lines(s)
 	return lines
 end
 
+-- Split an ANSI-colored string into segments of at most `width` visible
+-- columns, so wrapped continuation lines can be indented past the gutter
+-- instead of bleeding under it. SGR state is replayed at the start of each
+-- segment and reset at its end, so colors survive the break. Escape
+-- sequences are copied whole (zero width); UTF-8 lead bytes start a new
+-- codepoint counted as width 1 (wide CJK approximated as 1 — fine for code).
+local function wrap_ansi(s, width)
+	if width < 1 then
+		width = 1
+	end
+	local segs, cur, vis, sgr = {}, {}, 0, ""
+	local i, n = 1, #s
+	while i <= n do
+		local c = s:byte(i)
+		if c == 27 then -- ESC: copy the whole "...m" sequence, zero width
+			local j = s:find("m", i + 1, true)
+			if not j then
+				cur[#cur + 1] = s:sub(i)
+				break
+			end
+			local esc = s:sub(i, j)
+			cur[#cur + 1] = esc
+			if esc == "\27[0m" or esc == "\27[m" then
+				sgr = ""
+			else
+				sgr = sgr .. esc
+			end
+			i = j + 1
+		else
+			if vis >= width then
+				segs[#segs + 1] = table.concat(cur) .. "\27[0m"
+				cur, vis = { sgr }, 0
+			end
+			local len = 1
+			if c >= 0xF0 then
+				len = 4
+			elseif c >= 0xE0 then
+				len = 3
+			elseif c >= 0xC0 then
+				len = 2
+			end
+			cur[#cur + 1] = s:sub(i, i + len - 1)
+			vis = vis + 1
+			i = i + len
+		end
+	end
+	segs[#segs + 1] = table.concat(cur) .. "\27[0m"
+	return segs
+end
+
 -- Marks per (new-file) line number, from `git diff -U0` hunk headers.
 --   "add"     line was added
 --   "mod"     line was modified
@@ -158,18 +208,33 @@ local function render(job)
 
 	local width = math.max(3, #tostring(#lines))
 	local numfmt = "\27[2m%" .. width .. "d\27[22m "
+	-- Visible width of the gutter+number prefix; continuation rows of a
+	-- wrapped line get this much blank space so text never sits under the
+	-- numbers. gutter block ("▎ " or "  ") is 2 cols when marks exist, else 0.
+	local prefix_w = (marks and 2 or 0) + width + 1
+	local blank = string.rep(" ", prefix_w)
+	local avail = job.area.w - prefix_w
+	local out_lines = {}
 	for i = 1, #lines do
 		local l = lines[i]:gsub("\r$", "")
 		if #l > MAX_LINE_BYTES then
 			l = l:sub(1, MAX_LINE_BYTES) .. "\27[0m"
 		end
-		local g = marks and (GUTTER[marks[i]] or GUTTER.none) or ""
-		lines[i] = g .. string.format(numfmt, i) .. l
+		local prefix = (marks and (GUTTER[marks[i]] or GUTTER.none) or "") .. string.format(numfmt, i)
+		if avail >= 1 then
+			local segs = wrap_ansi(l, avail)
+			out_lines[#out_lines + 1] = prefix .. segs[1]
+			for k = 2, #segs do
+				out_lines[#out_lines + 1] = blank .. segs[k]
+			end
+		else
+			out_lines[#out_lines + 1] = prefix .. l
+		end
 	end
 	if truncated then
-		lines[#lines + 1] = "\27[2m--- truncated at " .. MAX_LINES .. " lines ---\27[22m"
+		out_lines[#out_lines + 1] = "\27[2m--- truncated at " .. MAX_LINES .. " lines ---\27[22m"
 	end
-	return { lines = lines, truncated = truncated }
+	return { lines = out_lines, truncated = truncated }
 end
 
 -- ---------------------------------------------------------------- preview --
@@ -184,7 +249,9 @@ end
 function M:peek_impl(job)
 	local path = tostring(job.file.url)
 	local cha = job.file.cha
-	local mtime = (cha and cha.mtime or 0) .. ":" .. (cha and cha.len or 0)
+	-- Width is part of the key: lines are pre-wrapped at render time, so a
+	-- pane resize must invalidate the cache and re-wrap.
+	local mtime = (cha and cha.mtime or 0) .. ":" .. (cha and cha.len or 0) .. ":" .. job.area.w
 	local limit = job.area.h
 
 	local hit = fetch(path, mtime, job.skip, limit)
@@ -208,7 +275,8 @@ function M:peek_impl(job)
 		end
 	end
 
-	ya.preview_widget(job, ui.Text.parse(table.concat(hit.slice, "\n")):area(job.area))
+	-- Lines are already wrapped to the pane width in render(); no ui wrap.
+	ya.preview_widget(job, ui.Text.parse(table.concat(hit.slice, "\n")):area(job.area):wrap(ui.Wrap.NO))
 end
 
 function M:seek(job)

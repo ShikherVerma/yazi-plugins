@@ -17,11 +17,12 @@
 --- Width classes (re-evaluated every render pass, so terminal resizes are
 --- picked up automatically via the Tab.layout override):
 ---   laptop (width >= threshold):
----     BROWSE : parent fit-to-longest-dirname (cap 30) | list fit (cap 30) | preview rest
+---     BROWSE : parent fit-to-longest-dirname (cap 30, navigable) | list fit (cap 30) | preview rest
 ---     READING: parent 0 | list fit (cap 30) | preview rest
----   phone (width < threshold): parent always 0 (never 3 panels)
----     BROWSE : list fit (cap 30) | preview rest
----     READING: list = narrow sliver (~10%) | preview rest (~90%)
+---   phone (width < threshold):
+---     BROWSE : parent = slim fixed gutter (parent_gutter cols), a tap-to-go-back
+---              button (any click emits "leave"); hidden at root | list fit (cap 30) | preview rest
+---     READING: parent 0 | list = narrow sliver (~10%) | preview rest (~90%)
 ---
 --- Status bar is patched to show ONLY the hovered file's name.
 
@@ -29,7 +30,8 @@ local M = {}
 
 local cfg = {
 	threshold = 90, -- columns; below this = phone
-	parent_max = 30, -- parent pane width cap (laptop BROWSE)
+	parent_max = 30, -- laptop BROWSE: parent pane fit-to-dirname cap (real, navigable)
+	parent_gutter = 6, -- phone BROWSE: slim parent column acting as a tap-to-go-back button
 	current_max = 30, -- file-list width cap
 	min_width = 10, -- floor for fit-to-content panes
 	reading_frac = 0.10, -- phone READING: file-list sliver fraction
@@ -39,6 +41,7 @@ local cfg = {
 
 local state = {
 	mode = "browse", -- "browse" | "reading"
+	phone = false, -- current width class; read by the parent click handler
 	hovered = nil, -- url of last seen hovered file
 	last = nil, -- last ratio written, "p:c:v"
 	fit = {}, -- fit-width cache: role -> { key, cap, width }
@@ -114,6 +117,7 @@ local function apply(self)
 	end
 
 	local phone = w < cfg.threshold
+	state.phone = phone
 	local p, c
 	if state.mode == "reading" then
 		p = 0
@@ -122,8 +126,14 @@ local function apply(self)
 		else
 			c = fit_width("current", tab.current, cfg.current_max)
 		end
+	elseif phone then
+		-- Slim back-button gutter; hidden only when there is nothing to
+		-- leave to (tab.parent is nil at the filesystem root).
+		p = tab.parent and cfg.parent_gutter or 0
+		c = fit_width("current", tab.current, cfg.current_max)
 	else
-		p = phone and 0 or fit_width("parent", tab.parent, cfg.parent_max)
+		-- Laptop: normal fit-to-dirname parent column (navigable as usual).
+		p = fit_width("parent", tab.parent, cfg.parent_max)
 		c = fit_width("current", tab.current, cfg.current_max)
 	end
 
@@ -194,7 +204,22 @@ function M:setup(opts)
 		return current_click(self, event, up)
 	end
 
-	-- 4) Status bar: only the hovered file's name (task progress overlay is
+	-- 4) On phone, the slim parent gutter is a back button: ANY click steps
+	-- out one level, never navigating to the clicked row. On laptop the
+	-- parent is a normal navigable column, so delegate to the preset there.
+	-- Fires on the down edge only, so one tap = one leave.
+	local parent_click = Parent.click
+	Parent.click = function(self, event, up)
+		if not state.phone then
+			return parent_click(self, event, up)
+		end
+		if up or event.is_middle then
+			return
+		end
+		ya.emit("leave", {})
+	end
+
+	-- 5) Status bar: only the hovered file's name (task progress overlay is
 	-- kept, since it is transient feedback, not a status segment).
 	Status.redraw = function(self)
 		local els = {
