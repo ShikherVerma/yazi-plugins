@@ -19,10 +19,6 @@
 
 local WINDOWS = ya.target_family() == "windows"
 
--- How long (seconds) an on-demand fetch result is trusted before a render
--- may trigger a refresh; also throttles retries for non-repo directories.
-local TTL = 5
-
 -- Status codes; the numeric order decides which status wins for a
 -- directory that contains files with different statuses (see bubble_up).
 ---@enum CODES
@@ -163,18 +159,16 @@ local add = ya.sync(function(st, cwd, repo, changed)
 	end
 	ui.render()
 
-	-- The directory-preview column is a widget cached at peek time, so a
-	-- plain re-render won't recolor it. If the hovered directory is the one
-	-- we just fetched (or lies inside it) AND its status actually changed,
-	-- peek again to repaint it. Without the dirty check, a directory that
-	-- was ever fetched on demand would be force-repainted forever: every
-	-- repaint re-resolves the row, which re-arms the TTL refresh in
-	-- resolve(), which re-fetches and forces another repaint, looping with
-	-- no user input as long as it stays hovered.
+	-- Only force a preview repaint when the fetch actually changed
+	-- something, to avoid an unnecessary re-render on every steady-state
+	-- (repo untouched) on-demand fetch.
 	if not dirty then
 		return
 	end
 
+	-- The directory-preview column is a widget cached at peek time, so a
+	-- plain re-render won't recolor it. If the hovered directory is the one
+	-- we just fetched (or lies inside it), peek again to repaint it.
 	local hovered = cx.active.current.hovered
 	if hovered and hovered.cha.is_dir then
 		local h = tostring(hovered.url)
@@ -242,11 +236,11 @@ local function to_style(v)
 end
 
 -- Resolve the status code for a url from the plugin's state, triggering a
--- throttled on-demand fetch when the containing directory has no data yet.
+-- one-shot on-demand fetch when the containing directory has no data yet.
 -- Returns nil while the status is unknown. Called from the Entity style
 -- patch, the linemode sign, and the preview/parent suffix; lookups are
--- memoized in st.dirs and the TTL throttle keeps the emits deduplicated,
--- so the extra callers add no fetch traffic.
+-- memoized in st.dirs and st.tried dedupes the emit per directory, so the
+-- extra callers add no fetch traffic.
 ---@return CODES?
 local function resolve(st, url)
 	local dir = tostring(url.base or url.parent)
@@ -282,22 +276,17 @@ local function resolve(st, url)
 		end
 	end
 
-	local now = ya.time()
 	if not repo then
 		-- No data at all (parent column, or a previewed directory whose
-		-- ancestors were never loaded): fetch on demand, throttled.
-		if not st.tried[dir] or now - st.tried[dir] > TTL then
-			st.tried[dir] = now
+		-- ancestors were never loaded): fetch on demand, once. Renders
+		-- happen far more often than the underlying git state can change,
+		-- so a time-based retry here would just re-emit forever for any
+		-- directory that stays on screen.
+		if not st.tried[dir] then
+			st.tried[dir] = true
 			ya.emit("plugin", { "vscode-git-colors", ya.quote(dir) })
 		end
 		return nil
-	end
-
-	-- Refresh stale on-demand data (dirs kept fresh by the regular
-	-- fetcher never enter st.tried, so this only re-runs entry fetches).
-	if st.tried[dir] and now - st.tried[dir] > TTL then
-		st.tried[dir] = now
-		ya.emit("plugin", { "vscode-git-colors", ya.quote(dir) })
 	end
 
 	if repo == CODES.excluded then
@@ -335,8 +324,8 @@ end
 local function setup(st, opts)
 	st.dirs = {}
 	st.repos = {}
-	-- dirs fetched on demand (via entry) or found to be outside a repo:
-	-- last attempt timestamp, used for TTL-based refresh/retry.
+	-- dirs already fetched on demand (via entry) or found to be outside a
+	-- repo, so resolve() only ever emits one fetch per directory.
 	st.tried = {}
 
 	opts = opts or {}
