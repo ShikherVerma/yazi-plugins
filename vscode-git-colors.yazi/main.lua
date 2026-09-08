@@ -141,20 +141,40 @@ end
 local add = ya.sync(function(st, cwd, repo, changed)
 	st.dirs[cwd] = repo
 	st.repos[repo] = st.repos[repo] or {}
+
+	local paths, dirty = st.repos[repo], false
 	for path, code in pairs(changed) do
 		if code == CODES.clean then
-			st.repos[repo][path] = nil
+			if paths[path] ~= nil then
+				dirty = true
+			end
+			paths[path] = nil
 		elseif code == CODES.excluded then
+			if st.dirs[path] ~= CODES.excluded then
+				dirty = true
+			end
 			st.dirs[path] = CODES.excluded
 		else
-			st.repos[repo][path] = code
+			if paths[path] ~= code then
+				dirty = true
+			end
+			paths[path] = code
 		end
 	end
 	ui.render()
 
 	-- The directory-preview column is a widget cached at peek time, so a
 	-- plain re-render won't recolor it. If the hovered directory is the one
-	-- we just fetched (or lies inside it), peek again to repaint it.
+	-- we just fetched (or lies inside it) AND its status actually changed,
+	-- peek again to repaint it. Without the dirty check, a directory that
+	-- was ever fetched on demand would be force-repainted forever: every
+	-- repaint re-resolves the row, which re-arms the TTL refresh in
+	-- resolve(), which re-fetches and forces another repaint, looping with
+	-- no user input as long as it stays hovered.
+	if not dirty then
+		return
+	end
+
 	local hovered = cx.active.current.hovered
 	if hovered and hovered.cha.is_dir then
 		local h = tostring(hovered.url)
