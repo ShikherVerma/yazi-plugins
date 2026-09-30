@@ -35,7 +35,7 @@ Fetcher logic adapted from
 ya pkg add ShikherVerma/yazi-plugins:vscode-git-colors
 ```
 
-Built and tested against yazi 26.5.6. Yazi's plugin API changes between
+Built and tested against yazi 26.8.15. Yazi's plugin API changes between
 releases; expect small fixes needed on other versions.
 
 ## Setup

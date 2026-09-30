@@ -1,4 +1,4 @@
---- @since 26.5.6
+--- @since 26.8.15
 --- vscode-git-colors.yazi
 ---
 --- Colors file and directory NAMES by their git status, VS Code style:
@@ -421,12 +421,15 @@ local function setup(st, opts)
 	end, 7000)
 end
 
-local function fetch(_, job)
+local function process_fetch_job(job)
 	local cwd = job.files[1].url.base or job.files[1].url.parent
 	local repo = root(cwd)
 	if not repo then
 		remove(tostring(cwd))
-		return true
+		for _, file in ipairs(job.files) do
+			coroutine.yield(file, {})
+		end
+		return
 	end
 
 	local paths = {}
@@ -441,7 +444,13 @@ local function fetch(_, job)
 		:arg(paths)
 		:output()
 	if not output then
-		return true, Err("Cannot spawn `git` command, error: %s", err)
+		for _, file in ipairs(job.files) do
+			coroutine.yield(file, {
+				error = Err("Cannot spawn `git` command, error: %s", err),
+				retry = true,
+			})
+		end
+		return
 	end
 
 	local changed, excluded = {}, {}
@@ -466,7 +475,15 @@ local function fetch(_, job)
 
 	add(tostring(cwd), repo, changed)
 
-	return false
+	for _, file in ipairs(job.files) do
+		coroutine.yield(file, { retry = true })
+	end
+end
+
+local function fetch(_, job)
+	return ya.co(function()
+		process_fetch_job(job)
+	end)
 end
 
 -- On-demand fetch for a single directory that the regular fetcher never
